@@ -1,63 +1,53 @@
-# Production Deployment Runbook
+# Production Deployment & Operations Runbook
 
-This guide covers deploying **Nike SNKRS Tracker** on VPS servers and Docker environments.
-
----
-
-## ⚡ Option 1: Docker Compose (Recommended)
-
-### 1. `docker-compose.yml`
-```yaml
-version: "3.8"
-
-services:
-  app:
-    build: .
-    ports:
-      - "3000:3000"
-    environment:
-      - DATABASE_URL=file:./db/snkrs.db
-      - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL}
-      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
-      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
-      - MONITOR_INTERVAL_SECONDS=15
-      - MONITOR_REGIONS=TH,US,JP
-    restart: always
-```
-
-### 2. Deploy
-```bash
-docker compose up -d --build
-```
+This guide covers running **Nike SNKRS Tracker & Auto-Buy Bot** in local and production environments.
 
 ---
 
-## 🚀 Option 2: Linux VPS with PM2
+## ⚡ Option 1: Local Automation (Recommended for Bot Usage)
+
+Because the bot automates purchases via your authenticated local Google Chrome session, running locally ensures authentic browser fingerprints:
 
 ```bash
-# 1. Clone and install
+# 1. Install dependencies
+npm install
+
+# 2. Launch Chrome Remote Debugger
+.\start_chrome_debug.ps1
+# (or double click start_chrome_debug.bat)
+
+# 3. Start Tracker & API Server
+npm run dev
+```
+Open **[http://localhost:5173](http://localhost:5173)**.
+
+---
+
+## 🚀 Option 2: VPS Production Deployment (Monitoring Only)
+
+For running a 24/7 background tracker with webhook alerts:
+
+```bash
+# 1. Clone repository
 git clone https://github.com/Gubbitkeytoday/nike-snkrs-tracker.git /var/www/nike-snkrs
 cd /var/www/nike-snkrs
 npm install
-cp .env.example .env
-# Edit .env with your webhooks
 
-# 2. Setup database
-npx prisma db push
-npm run db:seed
-
-# 3. Build & start services
+# 2. Build Frontend
 npm run build
-pm2 start "npm start" --name snkrs-web
-pm2 start "npm run monitor" --name snkrs-daemon
+
+# 3. Start Backend via PM2
+pm2 start server.js --name snkrs-backend
+pm2 start "npm run preview" --name snkrs-frontend
 pm2 save
 pm2 startup
 ```
 
 ---
 
-## 🔍 Pre-Flight Checklist
+## 🔍 Pre-Flight Verification Checklist
 
-- [ ] Execute `npx prisma db push` to initialize schema.
-- [ ] Confirm valid `DISCORD_WEBHOOK_URL` or `TELEGRAM_BOT_TOKEN` in `.env`.
-- [ ] Test feed scraper: `npm run monitor` and verify logs output detected drops.
+- [ ] Execute `npm install` and verify zero dependency conflicts.
+- [ ] Confirm Chrome opens on port 9222 when running `start_chrome_debug.bat`.
+- [ ] Verify `GET http://localhost:3001/api/in-stock` returns Nike products JSON.
+- [ ] Test bot dry-run on an active item to confirm size picker interaction.

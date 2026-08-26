@@ -1,90 +1,93 @@
-# Nike SNKRS Tracker Architecture Specification
+# Nike SNKRS Tracker & Auto-Buy Bot System Architecture
 
 ## 🏗️ 1. High-Level Architectural Design
 
-**Nike SNKRS Tracker (SNKRS Radar)** combines an event-driven polling daemon, high-performance REST APIs, and a modern Next.js 16 Web Dashboard.
+**Nike SNKRS Tracker** is engineered as a three-tier architecture:
+1. **Presentation Layer:** React 18 SPA built with Vite and Tailwind CSS.
+2. **Gateway & API Proxy:** Express.js Node server handling Nike API aggregation and SSE log streaming.
+3. **Automation Engine:** Playwright connecting via Chrome DevTools Protocol (CDP) on port 9222 to control authentic browser sessions.
 
 ```mermaid
 graph TD
-    subgraph NikeIngress["1. Nike Thread V2 API Ingress"]
-        NikeAPI["api.nike.com/product_feed/threads/v2/"]
-        NikeTH["TH Marketplace (th/THB)"]
-        NikeUS["US Marketplace (en/USD)"]
-        NikeJP["JP Marketplace (ja/JPY)"]
+    subgraph ClientUI["React 18 Dashboard (Vite :5173)"]
+        Grid["In-Stock & Upcoming Grids"]
+        BotPanel["Bot Control & Task Manager"]
+        SSEListener["SSE Real-Time Log Viewer"]
     end
 
-    subgraph PollingDaemon["2. High-Frequency Poller Daemon (src/scripts/run-monitor.ts)"]
-        CronTimer["Configurable Jitter Timer (10-30s)"]
-        Parser["JSON Thread Parser (src/lib/monitor/nike-scraper.ts)"]
-        DiffEngine["State Diff & Restock Detector"]
+    subgraph ServerGateway["Express.js Server (:3001)"]
+        ScraperProxy["Nike API Content Proxy"]
+        BotController["Bot REST API (/api/bot/*)"]
+        SSEBroker["Server-Sent Events Stream (/api/bot/logs/stream)"]
     end
 
-    subgraph DatabaseLayer["3. Prisma ORM & Database"]
-        Prisma["Prisma 6.11 Client"]
-        Database[("SQLite / PostgreSQL Database")]
+    subgraph BotEngine["Playwright + Chrome CDP Engine (:9222)"]
+        PlaywrightController["bot/nikeBot.js Controller"]
+        ChromeSession["Google Chrome Instance (C:\\ChromeBotProfile)"]
+        PodiumMap["Podium data-qa Selector Engine"]
+        AuditVault["Screenshot Audit Storage (bot/screenshots/)"]
     end
 
-    subgraph DispatchTier["4. Notification Dispatch Pipeline"]
-        Discord["Discord Webhook Embed"]
-        Telegram["Telegram Channel Bot"]
-        LINE["LINE Notify API"]
+    subgraph ExternalServices["Nike Cloud Infrastructure"]
+        NikeFeedAPI["snkrs.services.nike.com/snkrs/content/v2/public/web/TH/th"]
+        NikeLaunchWeb["nike.com/th/launch/t/"]
     end
 
-    subgraph WebDashboard["5. Real-Time Web Dashboard (Next.js 16)"]
-        Client["React 19 App Router UI"]
-        APIRoute["/api/drops Route Handler"]
-    end
+    Grid --> ScraperProxy --> NikeFeedAPI
+    BotPanel --> BotController --> PlaywrightController
+    PlaywrightController --> SSEBroker --> SSEListener
 
-    NikeTH --> NikeAPI
-    NikeUS --> NikeAPI
-    NikeJP --> NikeAPI
-    NikeAPI --> CronTimer --> Parser --> DiffEngine
-
-    DiffEngine --> Prisma --> Database
-    DiffEngine -->|Trigger Alert| DispatchTier
-    DispatchTier --> Discord
-    DispatchTier --> Telegram
-    DispatchTier --> LINE
-
-    Database --> APIRoute --> Client
+    PlaywrightController -->|CDP Session| ChromeSession
+    PlaywrightController --> PodiumMap
+    PlaywrightController --> AuditVault
+    ChromeSession -->|Draw Entry & Checkout| NikeLaunchWeb
 ```
 
 ---
 
-## ⚡ 2. Drop Lifecycle State Machine
+## 🎯 2. Nike Podium Design-System Selector Mapping
+
+To ensure resilience against frequent CSS obfuscation, `bot/nikeBot.js` targets Nike's stable `data-qa` attributes:
+
+| Intent | Primary Selector (`data-qa`) | Fallback Selectors |
+| :--- | :--- | :--- |
+| **Entry CTA** | `[data-qa="feed-card-cta"]`, `[data-qa="buy-now-button"]` | `button:has-text("เข้าร่วม")`, `button:has-text("ซื้อเลย")`, `button:has-text("Enter Draw")` |
+| **Size Selector** | `[data-qa="size-selector"]` | `[data-qa="size-grid-modal"]`, `button[data-qa*="size"]` |
+| **Draw Submit** | `[data-qa="draw-entry-button"]` | `button:has-text("ยืนยัน")`, `button:has-text("Submit Entry")` |
+| **Checkout Next** | `[data-qa="save-and-continue-button"]` | `button:has-text("ดำเนินการต่อไป")` |
+| **Order Place** | `[data-qa="order-review-submit-button"]` | `button:has-text("สั่งซื้อ")`, `button:has-text("Place Order")` |
+
+---
+
+## 🤖 3. Bot State Machine & Execution Flow
 
 ```mermaid
-stateDiagram-v2
-    [*] --> UPCOMING: Scraper discovers new Thread object
-    
-    state UPCOMING {
-        CountDown: Launch countdown active
-        ShowDetails: Display MSRP, colorway, and launch type
-    }
-    
-    UPCOMING --> ACTIVE: CurrentTime >= LaunchDate
-    
-    state ACTIVE {
-        QueueOpen: DAN / LEO / FCFS live for checkout
-        MonitorSizes: Poll availableSkus real-time
-    }
-    
-    ACTIVE --> SOLD_OUT: All availableSkus.available == false
-    
-    state SOLD_OUT {
-        WatchRestock: Continuous size stock monitoring
-    }
-    
-    SOLD_OUT --> RESTOCKED: Any size becomes available
-    RESTOCKED --> DispatchAlert: Send Discord/Telegram/LINE webhook
-    DispatchAlert --> ACTIVE
+sequenceDiagram
+    autonumber
+    actor User as Collector
+    participant UI as Bot Control Panel
+    participant Server as Express Server
+    participant Bot as Playwright Bot Engine
+    participant Chrome as Chrome CDP (:9222)
+    participant Nike as Nike SNKRS TH
+
+    User->>UI: Add "Travis Scott AJ1" to Watchlist with sizes [9, 9.5, 10]
+    User->>UI: Click "Start Bot"
+    UI->>Server: POST /api/bot/start (with watchlist)
+    Server->>Bot: Initialize polling loop & attach CDP
+
+    loop Every 2-5 Seconds
+        Bot->>Server: Check countdown timer
+    end
+
+    Note over Bot,Chrome: Drop Goes Live (Launch Date Reached)
+    Bot->>Chrome: Navigate to Product Page
+    Bot->>Chrome: Wait for entry CTA button
+    Bot->>Chrome: Click Entry CTA -> Size Modal Opens
+    Bot->>Chrome: Select first available size from watchlist (e.g. US 9.5)
+    Bot->>Chrome: Click "Enter Draw" / "Buy Now"
+    Bot->>Chrome: Handle address/payment confirmation
+    Bot->>Chrome: Capture execution audit screenshot
+    Bot->>Server: Emit SSE Log: "✅ Draw entry submitted successfully!"
+    Server-->>UI: Real-time console update + toast notification
 ```
-
----
-
-## 🛡️ 3. Anti-Detection & Jitter Strategy
-
-To ensure zero downtime and prevent IP bans from Nike CDN gateways:
-1. **Randomized Request Jitter:** Intervals vary randomly between $T \pm 20\%$ seconds.
-2. **User-Agent Fingerprint Rotation:** Rotates modern Chrome / Safari headers.
-3. **Selective Query Parameters:** Queries strictly required fields (`productInfo`, `publishedContent`, `skus`) to minimize payload bandwidth.

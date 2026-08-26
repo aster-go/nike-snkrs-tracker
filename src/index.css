@@ -1,0 +1,104 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    @apply bg-nike-black text-white font-nike;
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #1a1a1a;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #444;
+    border-radius: 3px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #666;
+  }
+}
+
+@layer components {
+  .card-hover {
+    @apply transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl;
+  }
+
+  .badge {
+    @apply text-xs font-bold px-2 py-0.5 rounded-full uppercase tracking-wider;
+  }
+
+  .size-btn {
+    @apply text-xs font-medium px-2 py-1 rounded border transition-colors duration-150 cursor-default;
+  }
+
+  .size-available {
+    @apply border-green-500 text-green-400 bg-green-500/10;
+  }
+
+  .size-unavailable {
+    @apply border-gray-700 text-gray-600 bg-transparent line-through;
+  }
+
+  .size-low {
+    @apply border-yellow-500 text-yellow-400 bg-yellow-500/10;
+  }
+
+  .size-medium {
+    @apply border-blue-500 text-blue-400 bg-blue-500/10;
+  }
+
+  .size-high {
+    @apply border-green-500 text-green-400 bg-green-500/10;
+  }
+
+  .size-oos {
+    @apply border-red-800 text-red-700 bg-transparent line-through;
+  }
+
+  .pulse-dot {
+    @apply inline-block w-2 h-2 rounded-full bg-green-500 animate-pulse;
+  }
+}
+
+@layer utilities {
+  .text-gradient {
+    background: linear-gradient(135deg, #ffffff 0%, #aaaaaa 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+}
+
+.product-image {
+  transition: transform 0.4s ease;
+}
+
+.product-card:hover .product-image {
+  transform: scale(1.05);
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, #222 25%, #333 50%, #222 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
