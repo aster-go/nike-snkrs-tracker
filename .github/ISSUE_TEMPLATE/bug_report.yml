@@ -1,0 +1,42 @@
+name: 🐛 Bug Report
+description: Report a scraper issue, webhook failure, or UI defect in Nike SNKRS Tracker
+title: "[BUG]: "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for reporting an issue to improve Nike SNKRS Tracker!
+  - type: input
+    id: region
+    attributes:
+      label: Monitored Region
+      description: Which region feed encountered the issue? (e.g., TH, US, JP)
+      placeholder: TH
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Description of the Bug
+      description: Clear summary of what failed.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: Step-by-step instructions.
+      placeholder: |
+        1. Start monitor with region 'TH'
+        2. Webhook triggers for styleCode 'DM7866-140'
+        3. Size stock format error in Discord embed
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What should have happened.
+    validations:
+      required: true

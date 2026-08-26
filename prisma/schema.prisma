@@ -1,0 +1,106 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Sneaker {
+  id              String         @id @default(cuid())
+  sku             String         @unique
+  styleCode       String
+  title           String
+  subtitle        String?
+  description     String?
+  colorway        String?
+  imageUrl        String
+  galleryUrls     String?        // JSON array of strings
+  retailPrice     Float
+  currency        String         @default("THB")
+  estimatedResell Float?
+  snkrsUrl        String
+  region          String         @default("TH") // TH, US, JP, GB, EU
+  launchType      String         @default("LEO") // FCFS, LEO, DAN, EXCLUSIVE_ACCESS
+  launchDate      DateTime
+  status          String         @default("UPCOMING") // UPCOMING, ACTIVE, SOLD_OUT, RESTOCKED
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  sizes           SizeStock[]
+  restocks        RestockLog[]
+  priceHistory    PriceHistory[]
+  userAlerts      UserAlert[]
+
+  @@index([region, launchDate])
+  @@index([status])
+}
+
+model SizeStock {
+  id          String   @id @default(cuid())
+  sneakerId   String
+  sizeUs      String
+  sizeEu      String?
+  sizeUk      String?
+  inStock     Boolean  @default(true)
+  stockLevel  String   @default("HIGH") // HIGH, MEDIUM, LOW, OUT_OF_STOCK
+  updatedAt   DateTime @updatedAt
+
+  sneaker     Sneaker  @relation(fields: [sneakerId], references: [id], onDelete: Cascade)
+
+  @@unique([sneakerId, sizeUs])
+  @@index([sneakerId])
+}
+
+model RestockLog {
+  id          String   @id @default(cuid())
+  sneakerId   String
+  detectedAt  DateTime @default(now())
+  region      String
+  sizesRestocked String // JSON array of size labels
+  channelNotified Boolean @default(false)
+
+  sneaker     Sneaker  @relation(fields: [sneakerId], references: [id], onDelete: Cascade)
+
+  @@index([sneakerId])
+  @@index([detectedAt])
+}
+
+model WebhookSubscription {
+  id          String   @id @default(cuid())
+  platform    String   // DISCORD, TELEGRAM, LINE, CUSTOM
+  endpointUrl String
+  secretKey   String?
+  name        String
+  region      String   @default("ALL") // ALL, TH, US, JP
+  enabled     Boolean  @default(true)
+  filterTags  String?  // JSON array: ["JORDAN", "DUNK", "TRAVIS_SCOTT"]
+  createdAt   DateTime @default(now())
+  lastTriggered DateTime?
+}
+
+model PriceHistory {
+  id          String   @id @default(cuid())
+  sneakerId   String
+  recordedAt  DateTime @default(now())
+  marketPrice Float
+  source      String   @default("STOCKX") // STOCKX, GOAT, SASOM
+
+  sneaker     Sneaker  @relation(fields: [sneakerId], references: [id], onDelete: Cascade)
+
+  @@index([sneakerId])
+}
+
+model UserAlert {
+  id          String   @id @default(cuid())
+  email       String?
+  targetSku   String
+  targetSize  String?
+  alertType   String   @default("DROP_REMINDER") // DROP_REMINDER, RESTOCK, PRICE_DROP
+  createdAt   DateTime @default(now())
+
+  sneaker     Sneaker  @relation(fields: [targetSku], references: [sku], onDelete: Cascade)
+
+  @@index([targetSku])
+}
