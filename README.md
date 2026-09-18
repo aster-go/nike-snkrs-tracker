@@ -206,7 +206,7 @@ nike-snkrs-tracker/
 
 ### 1. Clone the Repository
 ```bash
-git clone https://github.com/Gubbitkeytoday/nike-snkrs-tracker.git
+git clone https://github.com/aster-go/nike-snkrs-tracker.git
 cd nike-snkrs-tracker
 ```
 
